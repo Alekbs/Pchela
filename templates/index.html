@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Voice Assistant</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>Voice Assistant</h1>
+    <button id="recordButton">Record</button>
+    <div id="output"></div>
+    <p id="result">Результат:</p>
+    
+    <script>
+        $(document).ready(function() {
+            var recordButton = document.getElementById('recordButton');
+            var outputDiv = document.getElementById('output');
+
+            recordButton.addEventListener('click', function() {
+                var constraints = {
+                    audio: {
+                        channelCount: 1,
+                        sampleRate: 16000,
+                        sampleSize: 16,
+                        volume: 1
+                    }
+                };
+
+                recordButton.disabled = true;
+                outputDiv.innerHTML = 'Listening...';
+
+                navigator.mediaDevices.getUserMedia({audio: constraints}).then(function(stream) {
+                    var mediaRecorder = new MediaRecorder(stream);
+                    var audioChunks = [];
+
+                    mediaRecorder.addEventListener('dataavailable', function(event) {
+                        audioChunks.push(event.data);
+                    });
+                    
+                    mediaRecorder.addEventListener('stop', function() {
+                        // Конвертируем audioChunks в Blob
+                        var audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+
+                        // Создаем объект FormData и добавляем Blob
+                        var formData = new FormData();
+                        formData.append('audio', audioBlob, 'recording.wav');
+
+
+                        fetch('/speech-to-text', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.text())
+                        .then(result => {
+                            document.getElementById('result').textContent = result;
+                        })
+                        .then(function(data) {
+                            outputDiv.innerHTML = '';
+
+                            recordButton.disabled = false;
+                        })
+                        
+                        
+                    });
+
+                    mediaRecorder.start();
+
+                    setTimeout(function() {
+                        mediaRecorder.stop();
+                    }, 3000);
+                }).catch(function(error) {
+                    console.error(error);
+                    outputDiv.innerHTML = 'Error: ' + error.message;
+                    recordButton.disabled = false;
+                });
+            });
+        });
+
+    </script>
+</body>
+</html>
+
